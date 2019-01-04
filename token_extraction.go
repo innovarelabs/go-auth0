@@ -2,6 +2,7 @@ package auth0
 
 import (
 	"errors"
+	"strings"
 
 	"gopkg.in/square/go-jose.v2/jwt"
 )
@@ -44,5 +45,14 @@ func FromMultiple(extractors ...RequestTokenExtractor) RequestTokenExtractor {
 }
 
 func FromBearer(bearer string) (*jwt.JSONWebToken, error) {
-	return jwt.ParseSigned(bearer)
+	raw := ""
+	if len(bearer) > 7 && strings.EqualFold(bearer[0:7], "BEARER ") {
+		raw = bearer[7:]
+	} else if len(bearer) > 6 && strings.EqualFold(bearer[0:7], "TOKEN ") {
+		raw = bearer[6:]
+	}
+	if raw == "" {
+		return nil, ErrTokenNotFound
+	}
+	return jwt.ParseSigned(raw)
 }
