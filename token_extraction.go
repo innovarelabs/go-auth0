@@ -48,7 +48,7 @@ func FromBearer(bearer string) (*jwt.JSONWebToken, error) {
 	raw := ""
 	if len(bearer) > 7 && strings.EqualFold(bearer[0:7], "BEARER ") {
 		raw = bearer[7:]
-	} else if len(bearer) > 6 && strings.EqualFold(bearer[0:7], "TOKEN ") {
+	} else if len(bearer) > 6 && strings.EqualFold(bearer[0:6], "TOKEN ") {
 		raw = bearer[6:]
 	}
 	if raw == "" {
