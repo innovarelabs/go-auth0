@@ -2,31 +2,30 @@ package auth0
 
 import (
 	"errors"
-	"net/http"
 	"time"
 
-	"gopkg.in/square/go-jose.v2"
+	jose "gopkg.in/square/go-jose.v2"
 	"gopkg.in/square/go-jose.v2/jwt"
 )
 
 // SecretProvider will provide everything
 // needed retrieve the secret.
 type SecretProvider interface {
-	GetSecret(r *http.Request) (interface{}, error)
+	GetSecret(bearer string) (interface{}, error)
 }
 
 // SecretProviderFunc simple wrappers to provide
 // secret with functions.
-type SecretProviderFunc func(*http.Request) (interface{}, error)
+type SecretProviderFunc func(string) (interface{}, error)
 
 // GetSecret implements the SecretProvider interface.
-func (f SecretProviderFunc) GetSecret(r *http.Request) (interface{}, error) {
-	return f(r)
+func (f SecretProviderFunc) GetSecret(bearer string) (interface{}, error) {
+	return f(bearer)
 }
 
 // NewKeyProvider provide a simple passphrase key provider.
 func NewKeyProvider(key interface{}) SecretProvider {
-	return SecretProviderFunc(func(_ *http.Request) (interface{}, error) {
+	return SecretProviderFunc(func(_ string) (interface{}, error) {
 		return key, nil
 	})
 }
@@ -73,7 +72,7 @@ type JWTValidator struct {
 // validator with the provided configuration.
 func NewValidator(config Configuration, extractor RequestTokenExtractor) *JWTValidator {
 	if extractor == nil {
-		extractor = RequestTokenExtractorFunc(FromHeader)
+		extractor = RequestTokenExtractorFunc(FromBearer)
 	}
 	return &JWTValidator{config, extractor}
 }
@@ -81,19 +80,19 @@ func NewValidator(config Configuration, extractor RequestTokenExtractor) *JWTVal
 // ValidateRequest validates the token within
 // the http request.
 // A default leeway value of one minute is used to compare time values.
-func (v *JWTValidator) ValidateRequest(r *http.Request) (*jwt.JSONWebToken, error) {
-	return v.validateRequestWithLeeway(r, jwt.DefaultLeeway)
+func (v *JWTValidator) ValidateRequest(bearer string) (*jwt.JSONWebToken, error) {
+	return v.validateRequestWithLeeway(bearer, jwt.DefaultLeeway)
 }
 
 // ValidateRequestWithLeeway validates the token within
 // the http request.
 // The provided leeway value is used to compare time values.
-func (v *JWTValidator) ValidateRequestWithLeeway(r *http.Request, leeway time.Duration) (*jwt.JSONWebToken, error) {
-	return v.validateRequestWithLeeway(r, leeway)
+func (v *JWTValidator) ValidateRequestWithLeeway(bearer string, leeway time.Duration) (*jwt.JSONWebToken, error) {
+	return v.validateRequestWithLeeway(bearer, leeway)
 }
 
-func (v *JWTValidator) validateRequestWithLeeway(r *http.Request, leeway time.Duration) (*jwt.JSONWebToken, error) {
-	token, err := v.extractor.Extract(r)
+func (v *JWTValidator) validateRequestWithLeeway(bearer string, leeway time.Duration) (*jwt.JSONWebToken, error) {
+	token, err := v.extractor.Extract(bearer)
 	if err != nil {
 		return nil, err
 	}
@@ -111,7 +110,7 @@ func (v *JWTValidator) validateRequestWithLeeway(r *http.Request, leeway time.Du
 	}
 
 	claims := jwt.Claims{}
-	key, err := v.config.secretProvider.GetSecret(r)
+	key, err := v.config.secretProvider.GetSecret(bearer)
 	if err != nil {
 		return nil, err
 	}
@@ -126,8 +125,8 @@ func (v *JWTValidator) validateRequestWithLeeway(r *http.Request, leeway time.Du
 }
 
 // Claims unmarshall the claims of the provided token
-func (v *JWTValidator) Claims(r *http.Request, token *jwt.JSONWebToken, values ...interface{}) error {
-	key, err := v.config.secretProvider.GetSecret(r)
+func (v *JWTValidator) Claims(bearer string, token *jwt.JSONWebToken, values ...interface{}) error {
+	key, err := v.config.secretProvider.GetSecret(bearer)
 	if err != nil {
 		return err
 	}

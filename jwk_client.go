@@ -8,7 +8,7 @@ import (
 	"strings"
 	"sync"
 
-	"gopkg.in/square/go-jose.v2"
+	jose "gopkg.in/square/go-jose.v2"
 )
 
 var (
@@ -43,7 +43,7 @@ func NewJWKClient(options JWKClientOptions, extractor RequestTokenExtractor) *JW
 // Passing nil to keyCacher will create a persistent key cacher
 func NewJWKClientWithCache(options JWKClientOptions, extractor RequestTokenExtractor, keyCacher KeyCacher) *JWKClient {
 	if extractor == nil {
-		extractor = RequestTokenExtractorFunc(FromHeader)
+		extractor = RequestTokenExtractorFunc(FromBearer)
 	}
 	if keyCacher == nil {
 		keyCacher = newMemoryPersistentKeyCacher()
@@ -111,8 +111,8 @@ func (j *JWKClient) downloadKeys() ([]jose.JSONWebKey, error) {
 }
 
 // GetSecret implements the GetSecret method of the SecretProvider interface.
-func (j *JWKClient) GetSecret(r *http.Request) (interface{}, error) {
-	token, err := j.extractor.Extract(r)
+func (j *JWKClient) GetSecret(bearer string) (interface{}, error) {
+	token, err := j.extractor.Extract(bearer)
 	if err != nil {
 		return nil, err
 	}
